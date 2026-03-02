@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar das Promos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        
+        /* Animação de fundo */
+        .bg-animated {
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #0f172a);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Efeito Glassmorphism */
+        .glass-input {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-left-color: #a855f7;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Animação do Carrossel Infinito */
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            /* Desloca 50% porque nós duplicamos os cards via JavaScript */
+            100% { transform: translateX(-50%); }
+        }
+        .carousel-track {
+            display: flex;
+            width: max-content;
+            animation: scroll 120s linear infinite;
+            transition: opacity 0.5s ease-in-out; /* <--- ADICIONE ESTA LINHA */
+        }
+        .carousel-track:hover {
+            animation-play-state: paused; /* Pausa quando passa o mouse para o usuário clicar */
+        }
+        /* Oculta a barra de rolagem */
+        .carousel-container::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-animated text-white min-h-screen flex flex-col items-center p-4 pt-12 overflow-x-hidden">
+
+    <div class="w-full max-w-5xl">
+        
+        <div class="text-center mb-10">
+            <h1 class="text-6xl font-bold tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                Radar das Promos
+            </h1>
+            <p class="text-slate-400 tracking-widest text-sm uppercase">O seu algoritmo caçador de ofertas</p>
+        </div>
+
+        <div id="carouselWrapper" class="w-full overflow-hidden mb-12 hidden">
+            <p class="text-center text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 animate-pulse">🔥 Ofertas Bombando Agora</p>
+            <div class="carousel-container w-full overflow-hidden relative">
+                <div class="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
+                <div class="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
+                
+                <div id="carouselTrack" class="carousel-track gap-4 px-4">
+                    </div>
+            </div>
+        </div>
+
+        <div class="max-w-2xl mx-auto relative group">
+            <div class="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+            <div class="relative glass-input rounded-full flex items-center p-2">
+                <input type="text" id="searchInput" 
+                    class="bg-transparent w-full px-6 py-3 text-lg text-white placeholder-slate-500 focus:outline-none" 
+                    placeholder="O que você procura? (ex: iPhone 15)">
+                
+                <button onclick="simularBusca()" 
+                    class="bg-white text-black hover:bg-cyan-50 font-bold rounded-full px-8 py-3 transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                    BUSCAR
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 flex flex-wrap justify-center gap-4 text-sm">
+            <label class="flex items-center gap-2 cursor-pointer glass-input px-4 py-2 rounded-full hover:bg-white/10 transition">
+                <input type="radio" name="filtroOferta" value="dia" checked class="accent-cyan-400 w-4 h-4">
+                <span class="text-slate-200">Ofertas do Dia</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer glass-input px-4 py-2 rounded-full hover:bg-white/10 transition">
+                <input type="radio" name="filtroOferta" value="relampago" class="accent-purple-400 w-4 h-4">
+                <span class="text-slate-200">Relâmpago</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer glass-input px-4 py-2 rounded-full hover:bg-white/10 transition">
+                <input type="radio" name="filtroOferta" value="imbativeis" class="accent-blue-400 w-4 h-4">
+                <span class="text-slate-200">Preços Imbatíveis</span>
+            </label>
+        </div>
+
+        <div id="loading" class="hidden flex justify-center mt-12">
+            <div class="loader"></div>
+            <span class="ml-3 text-slate-300 animate-pulse mt-1">Escaneando o radar...</span>
+        </div>
+
+        <div id="results" class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 transition-opacity duration-500 pb-12">
+        </div>
+
+    </div>
+
+    <script>
+      // ==========================================
+        // 1. CARREGAR CARROSSEL INFINITO AO ABRIR A TELA
+        // ==========================================
+        async function carregarDestaques() {
+            try {
+                const response = await fetch('http://localhost:3000/destaques');
+                const destaques = await response.json();
+
+                if (destaques.length === 0) return;
+
+                document.getElementById('carouselWrapper').classList.remove('hidden');
+                const track = document.getElementById('carouselTrack');
+                let cardsHTML = '';
+
+                destaques.forEach(item => {
+                    const linkDestino = item.linkAfiliado || item.linkOriginal;
+                    
+                    // Identidade visual dinâmica para a sigla da loja
+                    let siglaLoja = 'ML';
+                    let corSigla = 'text-yellow-400 bg-yellow-400/10';
+                    if (item.loja === 'Magazine Luiza') {
+                        siglaLoja = 'MG';
+                        corSigla = 'text-blue-400 bg-blue-400/10';
+                    } else if (item.loja === 'Shopee') {
+                        siglaLoja = 'SH';
+                        corSigla = 'text-orange-400 bg-orange-400/10';
+                    }
+
+                    // Se for Shopee e não tiver imagem real, usa um ícone legal de pacote
+                    const placeholder = item.loja === 'Shopee' 
+                        ? 'https://via.placeholder.com/100x100/f97316/ffffff?text=📦' 
+                        : 'https://via.placeholder.com/100x100/1e1b4b/a855f7?text=Foto';
+                    
+                    const imagemProduto = item.imagem.includes('via.placeholder.com') ? placeholder : item.imagem;
+                    
+                    cardsHTML += `
+                        <a href="${linkDestino}" target="_blank" class="w-72 flex-shrink-0 glass-input rounded-xl p-3 flex items-center gap-4 hover:bg-white/10 transition group cursor-pointer border-l-2 border-l-cyan-400/50">
+                            <img src="${imagemProduto}" class="w-16 h-16 object-cover rounded-lg bg-white" onerror="this.onerror=null; this.src='${placeholder}';">
+                            <div class="flex flex-col overflow-hidden w-full">
+                                <span class="text-xs font-bold text-white line-clamp-2 group-hover:text-cyan-400 transition" title="${item.titulo}">${item.titulo}</span>
+                                <div class="flex items-center justify-between mt-1">
+                                    <span class="text-green-400 font-bold text-sm">${item.preco}</span>
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${corSigla}">${siglaLoja}</span>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+
+                track.innerHTML = cardsHTML + cardsHTML;
+
+            } catch (erro) {
+                console.error("Erro ao carregar carrossel:", erro);
+            }
+        }
+
+        // ==========================================
+        // 2. SISTEMA DE BUSCA DE PRODUTOS
+        // ==========================================
+        async function simularBusca() {
+            const input = document.getElementById('searchInput').value;
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const filtroSelecionado = document.querySelector('input[name="filtroOferta"]:checked').value;
+
+            if(!input) return;
+
+            results.innerHTML = '';
+            results.classList.remove('opacity-100');
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('http://localhost:3000/pesquisar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ termo: input, filtro: filtroSelecionado })
+                });
+
+                const dadosReais = await response.json();
+
+                if (dadosReais.erro) {
+                    loading.classList.add('hidden');
+                    results.innerHTML = `<p class="col-span-full text-center text-yellow-400">Aviso: ${dadosReais.erro}</p>`;
+                    return;
+                }
+
+                loading.classList.add('hidden');
+                results.classList.add('opacity-100');
+
+                if (dadosReais.length === 0) {
+                    results.innerHTML = `<p class="col-span-full text-center text-slate-400">Nenhum produto encontrado no radar.</p>`;
+                    return;
+                }
+
+                dadosReais.forEach(item => {
+                    const linkDestino = item.linkAfiliado || item.linkOriginal;
+                    
+                    // Fallback visual aprimorado para a Shopee
+                    const placeholderDaImagem = item.loja === 'Shopee'
+                        ? 'https://via.placeholder.com/400x300/f97316/ffffff?text=Oferta+Shopee+📦'
+                        : 'https://via.placeholder.com/400x300/1e1b4b/a855f7?text=Foto+Indisponível';
+                    
+                    // Se a imagem no banco for o placeholder antigo, forçamos o novo. Senão, usamos a imagem real.
+                    const imagemProduto = (item.imagem && !item.imagem.includes('via.placeholder')) ? item.imagem : placeholderDaImagem;
+
+                    // Conserto do Foguinho Duplicado: Se já tem foguinho no texto (Shopee), não coloca de novo!
+                    let tagDesconto = '';
+                    if (item.desconto) {
+                        const textoLimpo = item.desconto.includes('🔥') ? item.desconto : `🔥 ${item.desconto}`;
+                        tagDesconto = `<span class="absolute top-3 left-3 bg-red-500/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-red-400/50 z-10 animate-pulse">
+                                ${textoLimpo}
+                           </span>`;
+                    }
+
+                    const tagPix = item.descontoPix
+                        ? `<span class="absolute top-3 right-3 bg-teal-500/90 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-lg border border-teal-400/50 z-10">
+                                💠 ${item.descontoPix}
+                           </span>`
+                        : '';
+
+                    // NOVA COR DA SHOPEE (Laranja)
+                    let estiloLoja = 'bg-white/10 text-slate-300 border border-white/10'; 
+                    if (item.loja === 'Mercado Livre') {
+                        estiloLoja = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+                    } else if (item.loja === 'Magazine Luiza') {
+                        estiloLoja = 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+                    } else if (item.loja === 'Shopee') {
+                        estiloLoja = 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+                    }
+
+                    const card = `
+                        <div class="glass-input p-5 rounded-2xl flex flex-col hover:bg-white/5 transition group h-full">
+                            
+                            <a href="${linkDestino}" target="_blank" class="block mb-4 overflow-hidden rounded-xl relative bg-white flex items-center justify-center">
+                                ${tagDesconto}
+                                ${tagPix}
+                                <img src="${imagemProduto}" 
+                                     alt="${item.titulo}" 
+                                     class="w-full h-48 object-cover transform group-hover:scale-105 transition duration-500"
+                                     onerror="this.onerror=null; this.src='${placeholderDaImagem}';">
+                            </a>
+
+                            <div class="mb-4 flex-grow">
+                                <a href="${linkDestino}" target="_blank" class="block">
+                                    <h3 class="font-bold text-lg leading-tight group-hover:text-cyan-400 transition line-clamp-3 mb-2" title="${item.titulo}">
+                                        ${item.titulo}
+                                    </h3>
+                                </a>
+                                <span class="inline-block text-xs px-2 py-1 rounded-md font-bold ${estiloLoja}">
+                                    ${item.loja}
+                                </span>
+                            </div>
+
+                            <div class="flex items-end justify-between mt-auto pt-4 border-t border-white/10">
+                                <div>
+                                    <p class="text-xs text-slate-400 mb-1">Por apenas</p>
+                                    <p class="text-2xl font-bold text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.3)]">${item.preco}</p>
+                                </div>
+                                
+                                <a href="${linkDestino}" target="_blank" class="shrink-0 text-sm font-bold text-purple-300 bg-purple-900/30 px-4 py-2 rounded-xl border border-purple-500/30 hover:bg-purple-800 transition transform hover:scale-105 shadow-lg">
+                                    🛒 COMPRAR
+                                </a>
+                            </div>
+
+                        </div>
+                    `;
+                    results.innerHTML += card;
+                });
+
+            } catch (erro) {
+                console.error("Erro na requisição:", erro);
+                loading.classList.add('hidden');
+                results.innerHTML = `<p class="col-span-full text-center text-red-400">Erro de conexão com o Maestro.</p>`;
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') simularBusca();
+        })
+
+        // Inicialização do Carrossel com Atualização Automática
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarDestaques();
+            setInterval(async () => {
+                const track = document.getElementById('carouselTrack');
+                track.style.opacity = '0';
+                setTimeout(async () => {
+                    await carregarDestaques();
+                    track.style.opacity = '1';
+                }, 500); 
+            }, 90000);
+        });
+    </script>
+</body>
+</html>
